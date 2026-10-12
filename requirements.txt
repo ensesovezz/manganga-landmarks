@@ -1,0 +1,28 @@
+# manganga-landmarks — dependencias
+# Entorno local (macOS Intel, CPU-only): Python 3.11
+#
+# Nota: en macOS x86_64 la última versión con wheels es torch 2.2.2 y numpy 1.x.
+# En Linux/Colab/Kaggle se puede usar torch reciente con CUDA (ver notebooks/train_unet.ipynb).
+
+numpy>=1.24,<2.0
+opencv-python>=4.8
+scipy>=1.10
+scikit-learn>=1.3
+pandas>=2.0
+matplotlib>=3.7
+pillow>=10.0
+typer>=0.9
+rich>=13.0
+tqdm>=4.66
+joblib>=1.3
+
+# PyTorch
+# macOS Intel (x86_64): CPU-only, última wheel disponible
+torch==2.2.2 ; sys_platform == "darwin" and platform_machine == "x86_64"
+# macOS Apple Silicon
+torch>=2.2 ; sys_platform == "darwin" and platform_machine == "arm64"
+# Linux (Colab/Kaggle usan su propia instalación CUDA)
+torch>=2.2 ; sys_platform == "linux"
+
+# Desarrollo
+pytest>=7.4

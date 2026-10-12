@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "Si usás este software, citá el trabajo original del pipeline."
+title: manganga-landmarks
+abstract: >-
+  Detección automática de 19 landmarks (esquema Ruttner) en el ala anterior derecha
+  de Apis mellifera mediante U-Net y morfometría geométrica. Fork orientado a Uruguay.
+type: software
+license: MIT
+authors:
+  - alias: ensesovezz
+    name: ensesovezz
+repository-code: https://github.com/ensesovezz/manganga-landmarks
+keywords:
+  - Apis mellifera
+  - geometric morphometrics
+  - landmarks
+  - U-Net
+  - Uruguay
+references:
+  - type: article
+    title: >-
+      Deep Learning and Geometric Morphometrics for the Identification of
+      Honey Bee Subspecies
+    year: 2022
+    journal: Big Data and Cognitive Computing
+    volume: 6
+    issue: 3
+    start: 70
+    doi: 10.3390/bdcc6030070
+    url: https://www.mdpi.com/2504-2289/6/3/70
+    authors:
+      - family-names: Gonçalves
+        given-names: Walter B. S.

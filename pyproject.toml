@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "manganga"
+version = "0.1.0"
+description = "Detección automática de 19 landmarks en alas de Apis mellifera (esquema Ruttner)"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "ensesovezz" }]
+keywords = ["bees", "apis-mellifera", "geometric-morphometrics", "landmarks", "uruguay"]
+
+dependencies = [
+    "numpy>=1.24,<2.0",
+    "opencv-python>=4.8",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "pillow>=10.0",
+    "typer>=0.9",
+    "rich>=13.0",
+    "tqdm>=4.66",
+    "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+manganga = "manganga.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["manganga*"]
+
+[tool.setuptools.package-data]
+manganga = ["assets/*.txt", "assets/*.json"]

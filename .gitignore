@@ -1,0 +1,26 @@
+# Entorno
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Artefactos del pipeline
+out/
+*.pt
+*.pth
+*.h5
+*.pb
+*.pbtxt
+*.joblib.tmp
+*.onnx
+
+# Datos crudos del usuario (no versionar fotos nuevas)
+data/raw/
+data/processed/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Reportes locales
+*.log
