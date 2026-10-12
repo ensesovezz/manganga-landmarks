@@ -42,15 +42,17 @@ def _load_runner(model_path: Path, device: str, max_disparity: float, use_clahe:
 
 
 def _write_outputs(result, out_dir: Path, prepared_image=None) -> None:
+    """Escribe .tps/.csv/overlay. Los resultados dudosos van a ``flagged/``."""
     from manganga.io import save_overlay, write_csv, write_tps
 
     if result.points is None:
         return
     stem = Path(result.image).stem
-    write_tps(out_dir / "landmarks" / f"{stem}.tps", result.points, image_id=result.image)
-    write_csv(out_dir / "landmarks" / f"{stem}.csv", result.points)
+    sub = "landmarks" if result.ok else "flagged"
+    write_tps(out_dir / sub / f"{stem}.tps", result.points, image_id=result.image)
+    write_csv(out_dir / sub / f"{stem}.csv", result.points)
     if prepared_image is not None:
-        save_overlay(out_dir / "overlays" / f"{stem}.png", prepared_image, result.points)
+        save_overlay(out_dir / sub / "overlays" / f"{stem}.png", prepared_image, result.points)
 
 
 @app.command()
@@ -92,8 +94,14 @@ def detect(
     console.print(table)
 
     if not result.ok:
+        destino = f"{out}/flagged/" if result.points is not None else None
+        mensaje = (
+            f"Resultado dudoso guardado en {destino} (revisá el overlay). "
+            if destino
+            else ""
+        )
         console.print(
-            f"[yellow]No se pudieron obtener los {N_LANDMARKS} puntos.[/yellow] "
+            f"[yellow]No se pudieron confirmar los {N_LANDMARKS} puntos.[/yellow] {mensaje}"
             "Probá con --crop, revisá la calidad de la foto o el checkpoint usado."
         )
         raise typer.Exit(code=1)
@@ -130,9 +138,10 @@ def batch(
 
     out.mkdir(parents=True, exist_ok=True)
     ok = 0
+    flagged = 0
     for path, result in zip(paths, results):
         prepared = None
-        if result.ok:
+        if result.points is not None:
             try:
                 from manganga.crop import crop_wing
 
@@ -144,6 +153,7 @@ def batch(
                 prepared = None
         _write_outputs(result, out, prepared_image=prepared)
         ok += int(result.ok)
+        flagged += int(result.status == "flagged")
 
     report = out / "report.csv"
     with open(report, "w", newline="", encoding="utf-8") as fh:
@@ -156,6 +166,11 @@ def batch(
         f"[green]{ok}/{len(results)}[/green] imágenes con los {N_LANDMARKS} puntos "
         f"({100 * ok / len(results):.1f}%). Reporte: {report}"
     )
+    if flagged:
+        console.print(
+            f"[yellow]{flagged} resultados dudosos[/yellow] guardados en {out}/flagged/ "
+            "(revisá la columna `disparity` del reporte)"
+        )
 
 
 @app.command()

@@ -31,10 +31,16 @@ DEFAULT_CHECKPOINT = Path("out/checkpoints/best.pt")
 
 @dataclass
 class Detection:
-    """Resultado de detectar los landmarks en una imagen."""
+    """Resultado de detectar los landmarks en una imagen.
+
+    ``points`` trae los 19 puntos ordenados siempre que se hayan podido ordenar,
+    aunque la forma haya quedado marcada como dudosa (``status="flagged"``).
+    ``ok`` es False en ese caso: los resultados dudosos se escriben en
+    ``out/flagged/`` para poder inspeccionarlos.
+    """
 
     image: str
-    points: np.ndarray | None  # (19, 2) ordenados, o None si falló
+    points: np.ndarray | None  # (19, 2) ordenados, o None si no se pudo
     status: str
     disparity: float = float("inf")
     mirrored: bool = False
@@ -43,7 +49,11 @@ class Detection:
 
     @property
     def ok(self) -> bool:
-        return self.points is not None and len(self.points) == N_LANDMARKS
+        return (
+            self.points is not None
+            and len(self.points) == N_LANDMARKS
+            and self.status == "ok"
+        )
 
     def as_row(self) -> dict:
         return {
@@ -146,7 +156,7 @@ class DetectionRunner:
         shape = order_shape(dots.points, self.reference, max_disparity=self.max_disparity)
         result = Detection(
             image=path.name,
-            points=shape.points if shape.ok else None,
+            points=shape.points if len(shape.points) == N_LANDMARKS else None,
             status="ok" if shape.ok else "flagged",
             disparity=shape.disparity,
             mirrored=shape.mirrored,

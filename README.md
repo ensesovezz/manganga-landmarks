@@ -81,7 +81,7 @@ make validate  # valida el ground truth de masks/
 
 ```bash
 manganga detect -i ala.jpg -o out/
-# out/landmarks/ala.tps  out/landmarks/ala.csv  out/overlays/ala.png
+# out/landmarks/ala.tps  out/landmarks/ala.csv  out/landmarks/overlays/ala.png
 ```
 
 Si la foto es cruda (no recortada):
@@ -89,6 +89,10 @@ Si la foto es cruda (no recortada):
 ```bash
 manganga detect -i foto_placa.jpg -o out/ --crop
 ```
+
+Los resultados que no pasan el control de forma (disparidad Procrustes > umbral) **no se
+descartan**: se guardan en `out/flagged/` con su overlay para inspeccionarlos, y el
+comando sale con código 1.
 
 ### Lote completo
 
