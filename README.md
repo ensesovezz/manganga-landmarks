@@ -11,6 +11,16 @@ foto del ala ──▶ (recorte opcional) ──▶ letterbox 400×400 ──▶
              ──▶ centros de los discos ──▶ ordenamiento Procrustes ──▶ 19 landmarks
 ```
 
+![Ejemplo: 19 landmarks detectados y ordenados](docs/img/ejemplo_sobre_ala.png)
+
+*Salida de ejemplo: los 19 puntos ordenados sobre las intersecciones de venas
+(overlay generado por `manganga detect`).*
+
+![Esquema de numeración de los 19 landmarks](docs/img/esquema_19_puntos.png)
+
+*Esquema de numeración (forma media de referencia). Usalo para digitalizar a mano en
+el mismo orden: `python scripts/reference_figure.py -o docs/img`.*
+
 **Salida**: `.tps` (compatible tpsDig/MorphoJ), `.csv` y overlay PNG con los puntos numerados.
 
 > Las coordenadas salen en el **marco normalizado 400×400** (letterbox + CLAHE), que es

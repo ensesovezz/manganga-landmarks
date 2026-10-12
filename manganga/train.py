@@ -184,7 +184,8 @@ def train(config: TrainConfig) -> dict:
 
     print(
         f"U-Net base={config.base} depth={config.depth} ({count_parameters(model):,} parámetros) | "
-        f"train={len(train_ds)} val={len(val_ds)} métrica sobre {len(metric_pairs)} | device={device}"
+        f"train={len(train_ds)} val={len(val_ds)} | "
+        f"métrica: {config.metric_samples} de {len(metric_pairs)} imágenes de test | device={device}"
     )
 
     history = TrainHistory()
