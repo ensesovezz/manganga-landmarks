@@ -24,7 +24,7 @@ from manganga.data.dataset import WingMaskDataset, list_pairs
 from manganga.data.validate import load_excluded
 from manganga.detect import predict_map
 from manganga.landmarks import detect_dots, load_reference, order_shape
-from manganga.landmarks.blobs import CANDIDATE_MARGIN
+from manganga.landmarks.blobs import CANDIDATE_MARGIN, expected_radius_for
 from manganga.landmarks.procrustes import DEFAULT_MAX_DISPARITY
 from manganga.models import build_model, count_parameters
 from manganga.preprocess import apply_clahe, letterbox
@@ -101,7 +101,12 @@ def evaluate_detection(
         if use_clahe:
             image = apply_clahe(image)
         prob = predict_map(model, image.astype(np.float32) / 255.0, device)
-        dots = detect_dots(prob, n_expected=N_LANDMARKS, max_candidates=N_LANDMARKS + CANDIDATE_MARGIN)
+        dots = detect_dots(
+            prob,
+            n_expected=N_LANDMARKS,
+            expected_radius=expected_radius_for(size),
+            max_candidates=N_LANDMARKS + CANDIDATE_MARGIN,
+        )
         if len(dots.points) < N_LANDMARKS:
             continue
         detected += 1
@@ -256,8 +261,14 @@ def train(config: TrainConfig) -> dict:
             print(f"epoch {epoch:3d} | train {train_loss:.5f} | val {val_loss:.5f} | {row['seconds']}s")
 
         history.rows.append(row)
+        # Unión de columnas vistas: las métricas aparecen solo cada N épocas.
+        fieldnames: list[str] = []
+        for past in history.rows:
+            for key in past:
+                if key not in fieldnames:
+                    fieldnames.append(key)
         with open(log_path, "w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(fh, fieldnames=list(history.rows[0].keys()))
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(history.rows)
 

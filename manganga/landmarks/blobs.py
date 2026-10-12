@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
-from manganga import N_LANDMARKS
+from manganga import IMAGE_SIZE, N_LANDMARKS
 
 # Radio esperado de los discos con los que se generaron las máscaras (cria_mascara.py, size=4).
 EXPECTED_RADIUS = 4.0
@@ -73,6 +73,15 @@ class DotResult:
             "n_candidates": self.n_candidates,
             "area_media": round(float(np.mean(self.areas)), 1) if self.areas is not None and len(self.areas) else "",
         }
+
+
+def expected_radius_for(size: int, base_size: int = IMAGE_SIZE, base_radius: float = EXPECTED_RADIUS) -> float:
+    """Radio esperado de un disco cuando la imagen no es de ``base_size``.
+
+    Las máscaras del upstream se generaron a 400x400 con radio 4; si el pipeline
+    corre a 256 (p. ej. en CPU) los discos son proporcionalmente más chicos.
+    """
+    return base_radius * (size / base_size)
 
 
 @dataclass

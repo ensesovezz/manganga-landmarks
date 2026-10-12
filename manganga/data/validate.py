@@ -19,7 +19,7 @@ import pandas as pd
 
 from manganga import N_LANDMARKS
 from manganga.landmarks import detect_dots, load_reference, order_shape
-from manganga.landmarks.blobs import CANDIDATE_MARGIN
+from manganga.landmarks.blobs import CANDIDATE_MARGIN, expected_radius_for
 from manganga.landmarks.procrustes import DEFAULT_MAX_DISPARITY
 
 
@@ -41,7 +41,11 @@ def validate_mask(
     max_disparity: float = DEFAULT_MAX_DISPARITY,
 ) -> MaskValidation:
     """Extrae, ordena y evalúa una máscara."""
-    dots = detect_dots(mask, max_candidates=N_LANDMARKS + CANDIDATE_MARGIN)
+    dots = detect_dots(
+        mask,
+        expected_radius=expected_radius_for(mask.shape[0]),
+        max_candidates=N_LANDMARKS + CANDIDATE_MARGIN,
+    )
     if len(dots.points) < 19:
         return MaskValidation(
             name=name,

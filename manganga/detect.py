@@ -21,7 +21,7 @@ import torch
 from manganga import IMAGE_SIZE, N_LANDMARKS
 from manganga.crop import crop_wing
 from manganga.landmarks import detect_dots, load_reference, order_shape
-from manganga.landmarks.blobs import CANDIDATE_MARGIN
+from manganga.landmarks.blobs import CANDIDATE_MARGIN, expected_radius_for
 from manganga.landmarks.procrustes import DEFAULT_MAX_DISPARITY
 from manganga.models import build_model
 from manganga.preprocess import apply_clahe, letterbox, load_gray
@@ -127,7 +127,12 @@ class DetectionRunner:
             return Detection(image=path.name, points=None, status="crop_failed", notes=notes)
 
         prob = predict_map(self.model, prepared, device=self.device)
-        dots = detect_dots(prob, n_expected=N_LANDMARKS, max_candidates=N_LANDMARKS + CANDIDATE_MARGIN)
+        dots = detect_dots(
+            prob,
+            n_expected=N_LANDMARKS,
+            expected_radius=expected_radius_for(self.size),
+            max_candidates=N_LANDMARKS + CANDIDATE_MARGIN,
+        )
 
         if len(dots.points) < N_LANDMARKS:
             return Detection(

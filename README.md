@@ -146,6 +146,19 @@ discos dibujados sobre los 19 landmarks digitados manualmente (ver `cria_mascara
 La U-Net aprende a predecir esos discos y `manganga.landmarks.detect_dots` recupera sus
 centros. Los `.txt` con los puntos manuales originales no fueron publicados.
 
+**Calidad del ground truth** (`manganga validate-data`, ver `out/validation_*.csv`):
+
+| Métrica | Valor |
+|---|---|
+| Discos por máscara | 44-53 px de área (π·4² ≈ 50) |
+| Ruido en las máscaras | motas de 1-38 px |
+| Máscaras rotas (les falta un disco) | ~6,5 % |
+| Disparidad Procrustes (válidas) | media 0.0053 · p99 0.0083 · máx 0.0099 |
+
+Ese ~6,5 % de máscaras no se puede recuperar (el disco no está en la imagen): se excluyen
+del entrenamiento con `--filter-dir out`. La disparidad del ground truth calibra el umbral
+por defecto (`DEFAULT_MAX_DISPARITY = 0.03`, 3× el peor caso válido).
+
 ## Protocolo de fotografía
 
 Para que las fotos nuevas entren directo al pipeline:
