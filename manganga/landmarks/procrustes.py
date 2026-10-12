@@ -21,8 +21,12 @@ from manganga import N_LANDMARKS
 
 REFERENCE_ASSET = "reference_19.txt"
 # Umbral de disparidad (RMS por punto, en unidades de la referencia) para marcar
-# una forma como sospechosa. Calibrado sobre el dataset del upstream (ver validate.py).
-DEFAULT_MAX_DISPARITY = 0.08
+# una forma como sospechosa.
+# Calibrado sobre el ground truth del upstream (3.000 máscaras de masks/):
+# media 0.0053 · p95 0.0071 · p99 0.0083 · máximo 0.0099.
+# 0.03 deja ~3x de margen sobre el peor caso del ground truth y sigue detectando
+# ordenamientos malos (que suelen dar > 0.05).
+DEFAULT_MAX_DISPARITY = 0.03
 
 
 def load_reference(path: str | None = None) -> np.ndarray:
@@ -101,8 +105,9 @@ class OrderedShape:
     points: np.ndarray  # (19, 2) en el orden de la referencia
     disparity: float
     mirrored: bool  # True si hubo que espejar (indica foto de ala izquierda)
-    n_points: int
+    n_points: int  # puntos de entrada
     ok: bool
+    dropped: int = 0  # puntos descartados (cuando había más de 19)
     note: str = ""
 
 
@@ -142,16 +147,23 @@ def order_shape(
     max_iter: int = 5,
     allow_mirror: bool = True,
     max_disparity: float = DEFAULT_MAX_DISPARITY,
+    select_best: bool = True,
 ) -> OrderedShape:
     """Ordena los puntos según la referencia.
 
-    Prueba la forma tal cual y su espejo (una foto de ala izquierda llega
-    invertida), se queda con la de menor disparidad y refina la asignación
-    de forma iterativa.
+    - Prueba la forma tal cual y su espejo (una foto de ala izquierda llega
+      invertida) y se queda con la de menor disparidad.
+    - Si hay **más** puntos que landmarks (típico: motas de ruido en la máscara),
+      elige el mejor subconjunto de 19 con asignación húngara rectangular contra
+      la referencia (selección guiada por la forma) e informa cuántos descartó.
+    - Si hay menos, no puede ordenar y devuelve ``ok=False``.
+
+    Para formas espejadas las coordenadas devueltas están en el marco espejado
+    (el eje x se invirtió); ``mirrored=True`` lo indica.
     """
     pts = np.asarray(points, dtype=float)
     n_points = len(pts)
-    if n_points != len(reference):
+    if n_points < len(reference):
         return OrderedShape(
             points=pts,
             disparity=float("inf"),
@@ -169,14 +181,21 @@ def order_shape(
         variants.append((mirrored, True))
 
     for variant, is_mirrored in variants:
-        result = _order_variant(variant, reference, max_iter)
-        if best is None or result.disparity < best.disparity:
+        if len(variant) > len(reference) and select_best:
+            ordered, dropped, disp = _select_and_order(variant, reference, max_iter)
+        else:
+            ordered = _order_variant(variant, reference, max_iter)
+            dropped = 0
+            disp = disparity(ordered, reference)
+
+        if best is None or disp < best.disparity:
             best = OrderedShape(
-                points=result,
-                disparity=disparity(result, reference),
+                points=ordered,
+                disparity=disp,
                 mirrored=is_mirrored,
                 n_points=n_points,
                 ok=True,
+                dropped=dropped,
             )
 
     assert best is not None
@@ -188,7 +207,51 @@ def order_shape(
         )
     elif best.mirrored:
         best.note = "la forma se alineó mejor espejada: ¿foto de ala izquierda?"
+    elif best.dropped:
+        best.note = f"se descartaron {best.dropped} puntos por no encajar en la forma"
     return best
+
+
+def _select_and_order(
+    points: np.ndarray, reference: np.ndarray, max_iter: int
+) -> tuple[np.ndarray, int, float]:
+    """Elige el mejor subconjunto de ``len(reference)`` puntos y lo ordena.
+
+    Asignación húngara rectangular (N puntos -> 19 landmarks): en cada iteración
+    se elige el subconjunto que mejor encaja con la referencia, se re-ajusta la
+    similitud con ese subconjunto y se repite.
+    """
+    n_ref = len(reference)
+    best_aligned = None
+    best_cost = np.inf
+    for candidate in _pca_candidates(points, reference):
+        rows, cols = _assign_rect(candidate, reference)
+        cost = float(cdist(candidate, reference)[rows, cols].sum())
+        if cost < best_cost:
+            best_aligned, best_cost = candidate, cost
+
+    aligned = best_aligned
+    ordered = np.empty((n_ref, 2), dtype=float)
+    selected = np.arange(n_ref)
+    for _ in range(max_iter):
+        rows, cols = _assign_rect(aligned, reference)
+        selected = rows
+        ordered = np.empty((n_ref, 2), dtype=float)
+        ordered[cols] = points[rows]
+        rot, scale, trans = umeyama(ordered, reference)
+        aligned = apply_similarity(points, rot, scale, trans)
+
+    rows, cols = _assign_rect(aligned, reference)
+    ordered = np.empty((n_ref, 2), dtype=float)
+    ordered[cols] = points[rows]
+    disp = float(np.sqrt(((aligned[rows] - reference) ** 2).sum() / n_ref))
+    return ordered, len(points) - n_ref, disp
+
+
+def _assign_rect(aligned: np.ndarray, reference: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Asignación húngara rectangular: todos los landmarks a puntos distintos."""
+    rows, cols = linear_sum_assignment(cdist(aligned, reference))
+    return rows, cols
 
 
 def _order_variant(points: np.ndarray, reference: np.ndarray, max_iter: int) -> np.ndarray:

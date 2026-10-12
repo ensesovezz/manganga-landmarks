@@ -25,6 +25,12 @@ def similarity(points: np.ndarray, angle: float, scale: float, shift: np.ndarray
     return (scale * (rot @ points.T).T) + shift
 
 
+def min_pairwise_distance(points: np.ndarray) -> float:
+    from scipy.spatial.distance import pdist
+
+    return float(pdist(points).min())
+
+
 def test_reference_has_19_landmarks():
     reference = load_reference()
     assert reference.shape == (N_LANDMARKS, 2)
@@ -32,11 +38,15 @@ def test_reference_has_19_landmarks():
 
 
 def test_letterbox_preserves_aspect():
-    img = np.zeros((100, 300), dtype=np.uint8)
+    img = np.full((100, 300), 255, dtype=np.uint8)
     out = letterbox(img, size=400)
     assert out.shape == (400, 400)
-    # 300x100 -> 400x133 + padding
-    assert out[:133].any() or out[133:].any()
+    # 300x100 -> 400x133, centrado verticalmente con padding negro
+    rows_with_content = (out > 0).any(axis=1)
+    assert rows_with_content.sum() == 133
+    assert not rows_with_content[:133].any()
+    assert rows_with_content[133:266].all()
+    assert not rows_with_content[266:].any()
 
 
 def test_prepare_input_range():
@@ -49,7 +59,12 @@ def test_prepare_input_range():
 
 def test_detect_dots_finds_19_discs():
     reference = load_reference()
-    points = similarity(reference, 0.4, 90.0, np.array([200.0, 210.0]))
+    # Escala tal que la distancia mínima entre puntos sea > diámetro del disco (8 px).
+    scale = 13.0 / min_pairwise_distance(reference)
+    points = similarity(reference, 0.4, scale, np.zeros(2))
+    points += 200.0 - (points.min(axis=0) + points.max(axis=0)) / 2
+    assert points.min() > 8 and points.max() < 392  # precondición del test
+
     mask = synthetic_mask(points)
     result = detect_dots(mask)
     assert result.ok, result.notes
@@ -84,6 +99,39 @@ def test_order_shape_detects_mirror():
     shape = order_shape(mirrored, reference)
     assert shape.ok
     assert shape.mirrored
+
+
+def test_order_shape_selects_best_subset_with_extra_points():
+    """Con puntos de ruido (motas en la máscara) debe elegir los 19 correctos."""
+    reference = load_reference()
+    scale = 13.0 / min_pairwise_distance(reference)
+    points = similarity(reference, 0.3, scale, np.zeros(2))
+    points += 200.0 - (points.min(axis=0) + points.max(axis=0)) / 2
+
+    noise = np.array([[30.0, 30.0], [370.0, 40.0], [360.0, 370.0]])
+    noisy = np.vstack([points, noise])
+
+    shape = order_shape(noisy, reference)
+    assert shape.ok, shape.note
+    assert shape.dropped == 3
+    assert np.allclose(shape.points, points, atol=1e-6)
+
+
+def test_detect_dots_keeps_extra_candidates():
+    reference = load_reference()
+    scale = 13.0 / min_pairwise_distance(reference)
+    points = similarity(reference, 0.2, scale, np.zeros(2))
+    points += 200.0 - (points.min(axis=0) + points.max(axis=0)) / 2
+
+    mask = synthetic_mask(points)
+    # mota de ruido chica (área ~12 px, menos que un disco real)
+    cv2.circle(mask, (25, 25), 2, 255, -1)
+
+    exact = detect_dots(mask)
+    assert len(exact.points) == N_LANDMARKS
+
+    extended = detect_dots(mask, max_candidates=N_LANDMARKS + 8)
+    assert len(extended.points) >= N_LANDMARKS
 
 
 def test_order_shape_rejects_bad_shape():

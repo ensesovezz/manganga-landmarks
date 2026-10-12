@@ -176,6 +176,11 @@ def train(
     workers: int = typer.Option(0),
     seed: int = typer.Option(0),
     max_disparity: float = typer.Option(DEFAULT_MAX_DISPARITY),
+    filter_dir: Optional[Path] = typer.Option(
+        None,
+        "--filter-dir",
+        help="Directorio con los manifiestos de `validate-data` (excluye máscaras rotas).",
+    ),
     device: str = typer.Option("cpu"),
 ) -> None:
     """Entrena la U-Net (en CPU conviene --base 16 --size 256 --max-train-samples 500)."""
@@ -198,6 +203,7 @@ def train(
         workers=workers,
         seed=seed,
         max_disparity=max_disparity,
+        filter_dir=filter_dir,
         device=device,
     )
     summary = run_train(config)

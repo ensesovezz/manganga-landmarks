@@ -19,9 +19,18 @@ from manganga.preprocess import apply_clahe, letterbox
 IMAGE_EXTENSIONS = (".bmp", ".jpg", ".jpeg", ".png", ".tif", ".tiff")
 
 
-def list_pairs(image_dir: str | Path, mask_dir: str | Path) -> list[tuple[Path, Path]]:
-    """Devuelve los pares (imagen, máscara) con nombre coincidente."""
+def list_pairs(
+    image_dir: str | Path,
+    mask_dir: str | Path,
+    exclude: set[str] | None = None,
+) -> list[tuple[Path, Path]]:
+    """Devuelve los pares (imagen, máscara) con nombre coincidente.
+
+    ``exclude``: nombres de archivo de máscara a descartar (ver
+    ``manganga.data.validate.load_excluded``).
+    """
     image_dir, mask_dir = Path(image_dir), Path(mask_dir)
+    exclude = exclude or set()
     pairs = []
     for img_path in sorted(image_dir.iterdir()):
         if img_path.suffix.lower() not in IMAGE_EXTENSIONS:
@@ -34,6 +43,8 @@ def list_pairs(image_dir: str | Path, mask_dir: str | Path) -> list[tuple[Path, 
             if found is None:
                 continue
             mask_path = found
+        if mask_path.name in exclude:
+            continue
         pairs.append((img_path, mask_path))
     return pairs
 

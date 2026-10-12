@@ -19,16 +19,18 @@ setup: ## Crea el entorno virtual e instala dependencias
 test: ## Corre los tests
 	$(PYTHON) -m pytest tests/ -q
 
-validate: ## Valida el ground truth de masks/ y guarda overlays de las peores
+validate: ## Valida el ground truth de masks/ y test_masks/ (genera los manifiestos)
 	$(PYTHON) -m manganga.cli validate-data --mask-dir masks --dump-worst 12 -o out
+	$(PYTHON) -m manganga.cli validate-data --mask-dir test_masks -o out
 
 smoke: ## Entrenamiento de prueba en CPU (rápido, calidad baja)
 	$(PYTHON) -m manganga.cli train --data-dir . --size 256 --base 16 \
 		--max-train-samples 300 --epochs 2 --batch-size 4 --metric-every 1 \
-		--metric-samples 20 -o out/checkpoints-smoke
+		--metric-samples 20 --filter-dir out -o out/checkpoints-smoke
 
 train: ## Entrenamiento completo (usar GPU / Colab)
-	$(PYTHON) -m manganga.cli train --data-dir . --epochs 40 --batch-size 16 --device cuda
+	$(PYTHON) -m manganga.cli train --data-dir . --epochs 40 --batch-size 16 \
+		--filter-dir out --device cuda
 
 detect: ## Ejemplo: detectar en una imagen (IMG=ala.jpg)
 	$(PYTHON) -m manganga.cli detect -i $(IMG) -o out/

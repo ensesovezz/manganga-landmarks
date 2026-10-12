@@ -17,7 +17,9 @@ import cv2
 import numpy as np
 import pandas as pd
 
+from manganga import N_LANDMARKS
 from manganga.landmarks import detect_dots, load_reference, order_shape
+from manganga.landmarks.blobs import CANDIDATE_MARGIN
 from manganga.landmarks.procrustes import DEFAULT_MAX_DISPARITY
 
 
@@ -39,8 +41,8 @@ def validate_mask(
     max_disparity: float = DEFAULT_MAX_DISPARITY,
 ) -> MaskValidation:
     """Extrae, ordena y evalúa una máscara."""
-    dots = detect_dots(mask)
-    if not dots.ok:
+    dots = detect_dots(mask, max_candidates=N_LANDMARKS + CANDIDATE_MARGIN)
+    if len(dots.points) < 19:
         return MaskValidation(
             name=name,
             n_dots=len(dots.points),
@@ -114,6 +116,26 @@ def summarize(df: pd.DataFrame) -> dict:
         "disparidad_p99": round(float(finite["disparity"].quantile(0.99)), 4) if len(finite) else None,
         "disparidad_max": round(float(finite["disparity"].max()), 4) if len(finite) else None,
     }
+
+
+def load_excluded(filter_dir: str | Path | None, mask_dir_name: str) -> set[str]:
+    """Nombres de máscaras a excluir según el manifiesto de ``validate-data``.
+
+    ``validate-data`` escribe ``validation_<nombre-del-directorio>.csv`` en el
+    directorio de salida; acá se leen las filas con ``ok == False`` para no
+    entrenar con máscaras rotas (discos faltantes, ruido, etc.).
+    """
+    if filter_dir is None:
+        return set()
+
+    path = Path(filter_dir) / f"validation_{mask_dir_name}.csv"
+    if not path.exists():
+        return set()
+
+    df = pd.read_csv(path)
+    if "ok" not in df.columns or "name" not in df.columns:
+        return set()
+    return set(df.loc[~df["ok"].astype(bool), "name"].astype(str))
 
 
 def dump_worst(

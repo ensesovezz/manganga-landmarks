@@ -50,8 +50,14 @@ def read_tps(path: str | Path) -> tuple[np.ndarray, str | None]:
                 coords.append(float(text[i]))
                 i += 1
             continue
-        if token.upper().startswith(("IMAGE=", "ID=")):
+        if token.upper().startswith("IMAGE="):
             image_id = token.split("=", 1)[1]
+            i += 1
+            continue
+        if token.upper().startswith("ID="):
+            # No pisar el IMAGE= (el ID suele ser el nombre sin extensión).
+            if image_id is None:
+                image_id = token.split("=", 1)[1]
             i += 1
             continue
         i += 1

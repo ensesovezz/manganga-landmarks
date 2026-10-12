@@ -21,8 +21,10 @@ from torch.utils.data import DataLoader, Subset
 
 from manganga import IMAGE_SIZE, N_LANDMARKS
 from manganga.data.dataset import WingMaskDataset, list_pairs
+from manganga.data.validate import load_excluded
 from manganga.detect import predict_map
 from manganga.landmarks import detect_dots, load_reference, order_shape
+from manganga.landmarks.blobs import CANDIDATE_MARGIN
 from manganga.landmarks.procrustes import DEFAULT_MAX_DISPARITY
 from manganga.models import build_model, count_parameters
 from manganga.preprocess import apply_clahe, letterbox
@@ -51,6 +53,7 @@ class TrainConfig:
     seed: int = 0
     max_disparity: float = DEFAULT_MAX_DISPARITY
     reference_path: str | None = None
+    filter_dir: Path | None = None
     device: str = "cpu"
 
 
@@ -98,8 +101,8 @@ def evaluate_detection(
         if use_clahe:
             image = apply_clahe(image)
         prob = predict_map(model, image.astype(np.float32) / 255.0, device)
-        dots = detect_dots(prob, n_expected=N_LANDMARKS)
-        if not dots.ok:
+        dots = detect_dots(prob, n_expected=N_LANDMARKS, max_candidates=N_LANDMARKS + CANDIDATE_MARGIN)
+        if len(dots.points) < N_LANDMARKS:
             continue
         detected += 1
         shape = order_shape(dots.points, reference, max_disparity=max_disparity)
@@ -121,17 +124,25 @@ def train(config: TrainConfig) -> dict:
     device = torch.device(config.device)
     data_dir = Path(config.data_dir)
 
-    all_pairs = list_pairs(data_dir / config.train_images, data_dir / config.train_masks)
+    exclude_train = load_excluded(config.filter_dir, config.train_masks)
+    exclude_val = load_excluded(config.filter_dir, config.val_masks)
+    all_pairs = list_pairs(data_dir / config.train_images, data_dir / config.train_masks, exclude=exclude_train)
     if not all_pairs:
         raise FileNotFoundError(
             f"No se encontraron pares en {data_dir / config.train_images} + {data_dir / config.train_masks}"
         )
+    if exclude_train:
+        print(f"Excluidas {len(exclude_train)} máscaras rotas de train (manifiesto de validate-data)")
     if config.max_train_samples:
         all_pairs = all_pairs[: config.max_train_samples]
 
     train_pairs, val_pairs = split_pairs(all_pairs, config.val_split, config.seed)
 
-    external_val = list_pairs(data_dir / config.val_images, data_dir / config.val_masks)
+    external_val = list_pairs(
+        data_dir / config.val_images, data_dir / config.val_masks, exclude=exclude_val
+    )
+    if exclude_val:
+        print(f"Excluidas {len(exclude_val)} máscaras rotas de la métrica de validación")
     metric_pairs = external_val if external_val else val_pairs
 
     train_ds = WingMaskDataset(
