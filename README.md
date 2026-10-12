@@ -13,6 +13,10 @@ foto del ala ──▶ (recorte opcional) ──▶ letterbox 400×400 ──▶
 
 **Salida**: `.tps` (compatible tpsDig/MorphoJ), `.csv` y overlay PNG con los puntos numerados.
 
+> Las coordenadas salen en el **marco normalizado 400×400** (letterbox + CLAHE), que es
+> el que ve la red. Si usás `--crop`, ese marco corresponde al ala recortada, no a la
+> foto original.
+
 ---
 
 ## Estado
@@ -30,11 +34,31 @@ foto del ala ──▶ (recorte opcional) ──▶ letterbox 400×400 ──▶
 
 Requiere **Python 3.10-3.12** (en macOS Intel: 3.11).
 
+Con [uv](https://docs.astral.sh/uv/) (rápido, no necesita brew):
+
+```bash
+uv python install 3.11
+uv venv --python 3.11 .venv
+uv pip install --python .venv/bin/python -r requirements.txt
+uv pip install --python .venv/bin/python -e . --no-deps
+source .venv/bin/activate
+```
+
+O con venv clásico:
+
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e . --no-deps
+```
+
+Con `make`:
+
+```bash
+make setup     # crea el entorno e instala todo
+make test      # corre los tests
+make validate  # valida el ground truth de masks/
 ```
 
 > En macOS Intel (x86_64) la última versión de PyTorch con wheel es **2.2.2** y no hay
